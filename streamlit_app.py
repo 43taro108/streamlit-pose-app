@@ -208,11 +208,11 @@ if st.button("📐 肩関節解析とスティックピクチャを表示"):
     max_elev_r = np.max(ang_elev_r)
 
     # --- 描画関数 ---
-    def plot_stick(title, mid_head, l_shoul, r_shoul, elb, wri, side="L"):
+    def plot_stick(mid_head, l_shoul, r_shoul, elb, wri, side="L"):
         fig, ax = plt.subplots(figsize=(6,6))
         ax.set_xlim(-300, 300)
         ax.set_ylim(-300, 300)
-        ax.set_title(title)
+        
         ax.set_xlabel("X (px)")
         ax.set_ylabel("Y (px)")
         ax.grid(alpha=0.2)
@@ -236,7 +236,6 @@ if st.button("📐 肩関節解析とスティックピクチャを表示"):
 
     # --- 左上肢（最大外転） ---
     fig_l = plot_stick(
-        "左上肢スティックピクチャ（最大外転）",
         mid_head[tmg_abd_l] - mid_head[0],
         l_shoul[tmg_abd_l] - mid_head[0],
         r_shoul[tmg_abd_l] - mid_head[0],
@@ -249,7 +248,6 @@ if st.button("📐 肩関節解析とスティックピクチャを表示"):
 
     # --- 右上肢（最大外転） ---
     fig_r = plot_stick(
-        "右上肢スティックピクチャ（最大外転）",
         mid_head[tmg_abd_r] - mid_head[0],
         l_shoul[tmg_abd_r] - mid_head[0],
         r_shoul[tmg_abd_r] - mid_head[0],
