@@ -18,7 +18,7 @@ pose = mp_pose.Pose(static_image_mode=False, min_detection_confidence=0.5)
 mp_drawing = mp.solutions.drawing_utils
 
 st.set_page_config(page_title="MediaPipe CSV & 動画出力", layout="centered")
-st.title("📹 MediaPipe Pose × CSV（ピクセル座標）＆骨格付き動画出力")
+st.title("MediaPipe Pose × CSV（ピクセル座標）＆骨格付き動画出力")
 
 st.info("アップロードされた動画はサーバーに保存されません。処理後に自動で削除されます。")
 
@@ -51,7 +51,7 @@ if video_path and os.path.exists(video_path):
     st.markdown(f"📊 フレーム数: **{frame_count}** | FPS: **{fps:.2f}** | サイズ: {width}×{height} | 時間: **{duration:.1f} 秒**")
 
     start_frame, end_frame = st.slider("✂️ 分析フレーム範囲", 0, frame_count - 1, (0, min(frame_count - 1, 100)))
-    current_frame = st.slider("▶️ プレビュー表示フレーム", start_frame, end_frame, start_frame)
+    current_frame = st.slider("▶プレビュー表示フレーム", start_frame, end_frame, start_frame)
     cap.set(cv2.CAP_PROP_POS_FRAMES, current_frame)
     ret, frame = cap.read()
     if ret:
@@ -152,7 +152,7 @@ if st.session_state.csv_ready and not st.session_state.downloaded:
 import numpy as np
 import matplotlib.pyplot as plt
 plt.rcParams['font.family'] = 'MS Gothic'
-if st.button("📐 肩関節解析とスティックピクチャを表示"):
+if st.button("肩関節解析とスティックピクチャを表示"):
     st.info("CSVを読み込んで肩関節角度を解析＆スティックピクチャを描画します")
 
     # --- CSV 読み込み ---
