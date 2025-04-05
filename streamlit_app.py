@@ -11,19 +11,22 @@ import mediapipe as mp
 import pandas as pd
 import os
 import zipfile
+import numpy as np
+import matplotlib.pyplot as plt
+plt.rcParams['font.family'] = 'MS Gothic'
 
 # MediaPipe Pose 初期化
 mp_pose = mp.solutions.pose
 pose = mp_pose.Pose(static_image_mode=False, min_detection_confidence=0.5)
 mp_drawing = mp.solutions.drawing_utils
 
-st.set_page_config(page_title="MediaPipe CSV & 動画出力", layout="centered")
-st.title("MediaPipe Pose × CSV（ピクセル座標）＆骨格付き動画出力")
+st.set_page_config(page_title="MediaPipe CSV出力", layout="centered")
+st.title("MediaPipe Pose × CSV出力（ピクセル座標）")
 
 st.info("アップロードされた動画はサーバーに保存されません。処理後に自動で削除されます。")
 
 # セッション初期化
-for key in ["video_path", "csv_ready", "csv_data", "downloaded", "annotated_video_path"]:
+for key in ["video_path", "csv_ready", "csv_data", "downloaded"]:
     if key not in st.session_state:
         st.session_state[key] = None if "path" in key or "data" in key else False
 
@@ -35,7 +38,6 @@ if uploaded_file is not None:
     st.session_state.video_path = tfile.name
     st.session_state.csv_ready = False
     st.session_state.downloaded = False
-    st.session_state.annotated_video_path = None
 
 video_path = st.session_state.video_path
 
@@ -48,105 +50,78 @@ if video_path and os.path.exists(video_path):
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     duration = frame_count / fps if fps > 0 else 0
 
-    st.markdown(f"📊 フレーム数: **{frame_count}** | FPS: **{fps:.2f}** | サイズ: {width}×{height} | 時間: **{duration:.1f} 秒**")
+    st.markdown(f"フレーム数: **{frame_count}** | FPS: **{fps:.2f}** | サイズ: {width}×{height} | 時間: **{duration:.1f} 秒**")
 
-    start_frame, end_frame = st.slider("✂️ 分析フレーム範囲", 0, frame_count - 1, (0, min(frame_count - 1, 100)))
-    current_frame = st.slider("▶プレビュー表示フレーム", start_frame, end_frame, start_frame)
-    cap.set(cv2.CAP_PROP_POS_FRAMES, current_frame)
-    ret, frame = cap.read()
-    if ret:
-        preview = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        st.image(preview, caption=f"Frame {current_frame}", use_column_width=True)
-    cap.release()
+    if duration > 10:
+        st.warning("動画の長さが10秒を超えています。10秒以内の動画を使用してください。")
+    else:
+        if st.button("骨格検出＋CSV出力"):
+            with st.spinner("処理中..."):
+                cap = cv2.VideoCapture(video_path)
+                all_data = []
 
-    if st.button("骨格検出＋ピクセル座標で出力"):
-        with st.spinner("骨格検出・動画処理中...お待ちください"):
-            cap = cv2.VideoCapture(video_path)
-            cap.set(cv2.CAP_PROP_POS_FRAMES, start_frame)
-            all_data = []
+                frame_idx = 0
+                while cap.isOpened():
+                    ret, frame = cap.read()
+                    if not ret:
+                        break
 
-            # 出力動画の準備
-            out_path = os.path.join(tempfile.gettempdir(), "annotated_output.mp4")
-            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-            out = cv2.VideoWriter(out_path, fourcc, fps, (width, height))
+                    image_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                    results = pose.process(image_rgb)
 
-            frame_idx = start_frame
-            while frame_idx <= end_frame:
-                ret, frame = cap.read()
-                if not ret:
-                    break
+                    if results.pose_landmarks:
+                        row = [frame_idx]
+                        for lm in results.pose_landmarks.landmark:
+                            x_px = lm.x * width
+                            y_px = lm.y * height
+                            row += [x_px, y_px]
+                        all_data.append(row)
 
-                image_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                results = pose.process(image_rgb)
+                    frame_idx += 1
 
-                if results.pose_landmarks:
-                    row = [frame_idx]
-                    for lm in results.pose_landmarks.landmark:
-                        x_px = lm.x * width
-                        y_px = lm.y * height
-                        row += [x_px, y_px]
-                    all_data.append(row)
+                cap.release()
 
-                    mp_drawing.draw_landmarks(frame, results.pose_landmarks, mp_pose.POSE_CONNECTIONS)
+            if all_data:
+                columns = ["frame"]
+                for i in range(33):
+                    columns += [f"x_{i}_px", f"y_{i}_px"]
+                df = pd.DataFrame(all_data, columns=columns)
 
-                out.write(frame)
-                frame_idx += 1
+                st.session_state.csv_data = df.to_csv(index=False).encode("utf-8")
+                st.session_state.csv_ready = True
+                st.success(f"{len(df)} フレーム分の骨格座標を取得しました（ピクセル単位）")
+                st.dataframe(df.head())
+            else:
+                st.warning("骨格情報が取得できませんでした。")
 
-            cap.release()
-            out.release()
-
-        if all_data:
-            # ヘッダー：frame, x_0_px, y_0_px, ..., x_32_px, y_32_px
-            columns = ["frame"]
-            for i in range(33):
-                columns += [f"x_{i}_px", f"y_{i}_px"]
-            df = pd.DataFrame(all_data, columns=columns)
-
-            st.session_state.csv_data = df.to_csv(index=False).encode("utf-8")
-            st.session_state.csv_ready = True
-            st.session_state.annotated_video_path = out_path
-            st.success(f"{len(df)} フレーム分の骨格座標を取得しました（ピクセル単位）")
-            st.dataframe(df.head())
-        else:
-            st.warning("骨格情報が取得できませんでした。")
-
-# ダウンロード＆ZIPまとめ
+# ダウンロード処理
 if st.session_state.csv_ready and not st.session_state.downloaded:
     st.markdown("---")
 
-    # 一時CSV保存
     csv_path = os.path.join(tempfile.gettempdir(), "pose_output.csv")
     with open(csv_path, "wb") as f:
         f.write(st.session_state.csv_data)
 
-    # ZIPファイル生成
-    zip_path = os.path.join(tempfile.gettempdir(), "pose_output_bundle.zip")
-    with zipfile.ZipFile(zip_path, "w") as zipf:
-        zipf.write(csv_path, arcname="pose_output.csv")
-        zipf.write(st.session_state.annotated_video_path, arcname="annotated_output.mp4")
-
-    # ダウンロードボタン（ZIP）
-    with open(zip_path, "rb") as zf:
-        zip_bytes = zf.read()
+    with open(csv_path, "rb") as zf:
+        csv_bytes = zf.read()
         downloaded = st.download_button(
-            "CSV（ピクセル座標）＋骨格動画をまとめてダウンロード (ZIP)",
-            data=zip_bytes,
-            file_name="pose_output_bundle.zip",
-            mime="application/zip"
+            "CSVファイルをダウンロード",
+            data=csv_bytes,
+            file_name="pose_output.csv",
+            mime="text/csv"
         )
 
-    # 削除処理
     if downloaded:
         try:
-            for path in [video_path, csv_path, zip_path, st.session_state.annotated_video_path]:
-                if path and os.path.exists(path):
-                    os.remove(path)
-            st.success("一時ファイルをすべて削除しました")
+            if video_path and os.path.exists(video_path):
+                os.remove(video_path)
+            st.success("一時ファイルを削除しました")
         except Exception as e:
             st.warning(f"削除エラー: {e}")
         st.session_state.downloaded = True
         st.session_state.video_path = None
         st.session_state.csv_ready = False
+
 
 # === 角度計算＆スティックピクチャ表示ボタン ===
 import numpy as np
