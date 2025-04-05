@@ -1,5 +1,5 @@
-opencv-python-headless==4.6.0.66
-streamlit==1.12.2
+opencv-python-headless==
+streamlit
 mediapipe
 pandas
 matplotlib
