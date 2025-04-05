@@ -13,8 +13,8 @@ import os
 import numpy as np
 
 # 初期設定
-st.set_page_config(page_title="MediaPipe CSV出力（軽量版）", layout="centered")
-st.title("MediaPipe Pose × CSV出力（ピクセル座標・軽量モード）")
+st.set_page_config(page_title="MediaPipe CSV出力", layout="centered")
+st.title("MediaPipe Pose × CSV出力")
 
 st.info("10秒以内の動画のみ対応。アップロード後、自動処理＆CSV出力。動画や画像は保存されません。")
 
