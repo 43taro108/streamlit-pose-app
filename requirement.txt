@@ -1,5 +1,1 @@
-streamlit
-opencv-python
-mediapipe
-pandas
-matplotlib
+
